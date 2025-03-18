@@ -1,0 +1,45 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.gradient-bg {
+    background: linear-gradient(-45deg, #ff0000, #0000ff);
+    background-size: 200% 200%;
+    animation: warning-flash 1s linear infinite;
+    min-height: 100vh;
+    width: 100%;
+}
+
+@keyframes warning-flash {
+    0% {
+        background-position: 0% 50%;
+        opacity: 1;
+    }
+    50% {
+        background-position: 100% 50%;
+        opacity: 0.8;
+    }
+    100% {
+        background-position: 0% 50%;
+        opacity: 1;
+    }
+}
+
+@keyframes gradient {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+.gradient-bg1 {
+    background:red;
+    background-size: 400% 400%;
+    animation: gradient 5s ease infinite;
+   
+}
