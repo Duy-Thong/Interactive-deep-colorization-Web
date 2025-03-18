@@ -286,9 +286,8 @@ const AccountManagement = () => {
         return strongPasswordRegex.test(password.trim());
     };
 
-    const handleUpdate = async (values) => {
+    const handleUpdate = async () => {
         const newUsername = username.trim();
-        const auth = getAuth();
 
         if (!newUsername) {
             openNotificationWithIcon('error', 'Tên đăng nhập không được để trống');
@@ -439,24 +438,7 @@ const AccountManagement = () => {
         }
     };
 
-    const handleDeleteDevice = async (deviceId) => {
-        try {
-            const db = getDatabase();
-            const deviceRef = ref(db, `users/${userId}/devices/${deviceId}`);
-            await update(deviceRef, { isDeleted: true });
-            setDevices(devices.filter(device => device.id !== deviceId));
-            openNotificationWithIcon('success', 'Hủy liên kết thiết bị thành công');
-        } catch (error) {
-            console.error("Error deleting device:", error);
-            openNotificationWithIcon('error', 'Lỗi khi hủy liên kết thiết bị');
-        }
-        setConfirmDeleteVisible(false);
-    };
 
-    const showDeleteConfirm = (deviceId) => {
-        setSelectedDeviceId(deviceId);
-        setConfirmDeleteVisible(true);
-    };
 
     const handleRemoveDevice = async () => {
         const db = getDatabase();
