@@ -1,21 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getDatabase, ref, get, update, remove, set } from "firebase/database";
+import { getDatabase, ref, get, update, set } from "firebase/database";
 import { getAuth, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from "firebase/auth";
 import { put } from '@vercel/blob';
 import { useUser } from '../contexts/UserContext';
 import Navbar from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Typography, notification, Modal, Tooltip, Spin, message, List, Tour } from 'antd';
-import { 
-    CameraFilled, 
-    MailOutlined, 
-    EditOutlined, 
-    CheckOutlined, 
-    CloseOutlined, 
-    TeamOutlined,
-    DisconnectOutlined,
-    UserOutlined 
-} from '@ant-design/icons';
+import { Form, Input, Button, Typography, notification, Modal, Tooltip, Tour } from 'antd';
+import {
+    CameraFilled,
+    MailOutlined,
+    EditOutlined,
+    CheckOutlined,
+    CloseOutlined} from '@ant-design/icons';
 import RequireLogin from '../components/RequireLogin';
 import Cropper from 'react-easy-crop';
 import "./style.css";
@@ -157,27 +153,18 @@ const AccountManagement = () => {
     const [cropModalVisible, setCropModalVisible] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
     const [isEditingUsername, setIsEditingUsername] = useState(false);
-    const [devices, setDevices] = useState([]);
-    const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
-    const [selectedDeviceId, setSelectedDeviceId] = useState(null);
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [deviceToRemove, setDeviceToRemove] = useState(null);
-    const [isUsersModalVisible, setIsUsersModalVisible] = useState(false);
-    const [usersWithAccess, setUsersWithAccess] = useState([]);
-    const [loadingUsers, setLoadingUsers] = useState(false);
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
     const [tourOpen, setTourOpen] = useState(false);
     const tourRefs = useRef({
         avatarRef: null,
         usernameRef: null,
-        devicesRef: null,
         passwordRef: null
     });
     const navigate = useNavigate();
 
     useEffect(() => {
         const auth = getAuth();
-        
+
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
                 await fetchUserData(user);
@@ -209,9 +196,9 @@ const AccountManagement = () => {
 
                 // Format creation date
                 const createdAtDate = new Date(currentUser.metadata.creationTime);
-                const options = { 
-                    year: 'numeric', 
-                    month: 'numeric', 
+                const options = {
+                    year: 'numeric',
+                    month: 'numeric',
                     day: 'numeric',
                     hour: 'numeric',
                     minute: 'numeric'
@@ -227,42 +214,6 @@ const AccountManagement = () => {
             setLoading(false);
         }
     };
-
-    useEffect(() => {
-        const fetchDevices = async () => {
-            const db = getDatabase();
-            const userDevicesRef = ref(db, 'users/' + userId + '/devices');
-            const devicesRef = ref(db, 'devices');
-
-            try {
-                const [userSnapshot, devicesSnapshot] = await Promise.all([
-                    get(userDevicesRef),
-                    get(devicesRef)
-                ]);
-
-                if (userSnapshot.exists() && devicesSnapshot.exists()) {
-                    const userDevices = userSnapshot.val();
-                    const allDevices = devicesSnapshot.val();
-                    
-                    const deviceList = Object.keys(userDevices).map(deviceId => ({
-                        id: deviceId,
-                        name: allDevices[deviceId]?.name || 'Unnamed Device'
-                    }));
-                    
-                    setDevices(deviceList);
-                } else {
-                    setDevices([]);
-                }
-            } catch (error) {
-                console.error("Error fetching devices:", error);
-                openNotificationWithIcon('error', 'Lỗi khi tải danh sách thiết bị');
-            }
-        };
-
-        if (userId) {
-            fetchDevices();
-        }
-    }, [userId]);
 
     const checkUsernameExists = async (username) => {
         if (username === currentUsername) {
@@ -356,7 +307,7 @@ const AccountManagement = () => {
             // Update password hash in Database
             const userRef = ref(db, 'users/' + userId);
             await update(userRef, {
-                password : newPassword // Simple base64 encoding for example
+                password: newPassword // Simple base64 encoding for example
             });
 
             openNotificationWithIcon('success', 'Mật khẩu đã được cập nhật thành công');
@@ -405,7 +356,7 @@ const AccountManagement = () => {
             console.log('Starting new avatar upload...');
             const fileName = `colorize/avatars/${userId}-${Date.now()}.jpg`;
             console.log('Uploading to:', fileName);
-            
+
             const blob = await put(fileName, croppedBlob, {
                 access: 'public',
                 token: "vercel_blob_rw_vuBTDxs1Af4OyipF_7ktfANNunJPJCY1OsqLo4fevvrPM6A",
@@ -438,91 +389,17 @@ const AccountManagement = () => {
         }
     };
 
-
-
-    const handleRemoveDevice = async () => {
-        const db = getDatabase();
-        try {
-            await remove(ref(db, `users/${userId}/devices/${deviceToRemove}`));
-            setDevices(devices.filter(device => device.id !== deviceToRemove));
-            notification.success({
-                message: 'Thành công',
-                description: 'Hủy liên kết với thiết bị thành công',
-                placement: 'topRight'
-            });
-            setIsModalVisible(false);
-        } catch (error) {
-            console.error("Lỗi khi xóa thiết bị:", error);
-            notification.error({
-                message: 'Lỗi',
-                description: 'Có lỗi khi xóa thiết bị. Vui lòng thử lại.',
-                placement: 'topRight'
-            });
-        }
-    };
-
-    const showConfirmModal = (deviceId) => {
-        setDeviceToRemove(deviceId);
-        setIsModalVisible(true);
-    };
-
     const handleLogout = () => {
         logout();
         window.location.href = '/login';
     };
 
-    // Update the fetchUsersWithAccess function to accept deviceId parameter
-    const fetchUsersWithAccess = async (deviceId) => {
-        setLoadingUsers(true);
-        try {
-            const db = getDatabase();
-            const usersRef = ref(db, 'users');
-            const snapshot = await get(usersRef);
-            
-            if (snapshot.exists()) {
-                const users = [];
-                const userData = snapshot.val();
-                
-                for (const [uid, user] of Object.entries(userData)) {
-                    if (user.devices && user.devices[deviceId]) {
-                        users.push({
-                            id: uid,
-                            ...user
-                        });
-                    }
-                }
-                
-                setUsersWithAccess(users);
-            }
-        } catch (error) {
-            console.error("Error fetching users:", error);
-            message.error('Không thể tải danh sách người dùng');
-        }
-        setLoadingUsers(false);
-    };
 
-    // Update showUsersModal to accept deviceId parameter
-    const showUsersModal = (deviceId) => {
-        setIsUsersModalVisible(true);
-        fetchUsersWithAccess(deviceId);
-    };
-
-    const getProviderIcon = (providerType) => {
-        switch (providerType) {
-            case 'google':
-                return <GoogleIcon className="text-red-500" />;
-            case 'password':
-                return <MailOutlined className="text-blue-500" />;
-            default:
-                return null;
-        }
-    };
-    
     useEffect(() => {
         const checkTourStatus = async () => {
             const db = getDatabase();
             const tourRef = ref(db, `users/${userId}/tourAccount`);
-            
+
             try {
                 const snapshot = await get(tourRef);
                 // Show tour if tourAccount node doesn't exist or is not explicitly set to true
@@ -555,12 +432,6 @@ const AccountManagement = () => {
             placement: 'bottom',
         },
         {
-            title: 'Thiết bị',
-            description: 'Quản lý các thiết bị đã liên kết và xem người dùng có quyền truy cập',
-            target: () => tourRefs.current.devicesRef,
-            placement: 'bottom',
-        },
-        {
             title: 'Mật khẩu',
             description: 'Thay đổi mật khẩu tài khoản của bạn tại đây',
             target: () => tourRefs.current.passwordRef,
@@ -578,6 +449,7 @@ const AccountManagement = () => {
             <div className="flex flex-col items-center justify-center flex-1 p-4 md:p-8 mt-16">
                 <Title level={2} className='!text-white'>Quản lý tài khoản</Title>
 
+                {/* Personal Info Section */}
                 <div className="glassmorphism glassmorphism-filter-section w-full max-w-lg p-4 mb-4">
                     <div className="flex flex-col items-center mb-4">
                         <h2 className="text-xl font-semibold mb-4 text-gray-700">Thông tin tài khoản</h2>
@@ -682,63 +554,21 @@ const AccountManagement = () => {
                     </div>
                 </div>
 
-                <div className="glassmorphism glassmorphism-filter-section w-full max-w-lg p-4 mt-4" ref={el => tourRefs.current.devicesRef = el}>
-                    <h2 className="text-xl font-semibold mb-4 text-gray-700 text-center">Danh sách thiết bị</h2>
-                    {devices.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            {devices.map((device) => (
-                                <div key={device.id} className="flex flex-col justify-between p-3 rounded-lg shadow bg-white/50 backdrop-blur-sm">
-                                    <div>
-                                        <div className="font-medium truncate">{device.name || 'Thiết bị không tên'}</div>
-                                        <div className="text-sm text-gray-500 truncate">{device.id}</div>
-                                    </div>
-                                    <div className="flex justify-end gap-2 mt-2">
-                                        <Tooltip title="Xem người dùng">
-                                            <Button
-                                                type="text"
-                                                icon={<TeamOutlined className="text-blue-500" />}
-                                                onClick={() => showUsersModal(device.id)}
-                                            />
-                                        </Tooltip>
-                                        <Tooltip title="Hủy liên kết">
-                                            <Button
-                                                type="text"
-                                                danger
-                                                icon={<DisconnectOutlined />}
-                                                onClick={() => showConfirmModal(device.id)}
-                                            />
-                                        </Tooltip>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center text-gray-500">
-                            Không có thiết bị nào
-                        </div>
-                    )}
-                </div>
-
+                {/* Password Change Section */}
                 {!isGoogleUser && (
-                    <div ref={el => tourRefs.current.passwordRef = el}>
-                        <Button
-                            type="default"
-                            onClick={() => setShowChangePassword(!showChangePassword)}
-                            className="mt-4 !bg-white !text-blue-500 !border-blue-500 hover:!text-blue-600 hover:!border-blue-600"
-                        >
-                            {showChangePassword ? 'Hủy đổi mật khẩu' : 'Đổi mật khẩu'}
-                        </Button>
-
-                        {showChangePassword && (
+                    <div className="glassmorphism glassmorphism-filter-section w-full max-w-lg p-4 mb-4" ref={el => tourRefs.current.passwordRef = el}>
+                        <div className="flex flex-col items-center mb-4">
+                            <h2 className="text-xl font-semibold mb-4 text-gray-700">Đổi mật khẩu</h2>
                             <Form
                                 layout="vertical"
-                                className="glassmorphism glassmorphism-filter-section w-full max-w-lg mt-4 p-4"
+                                className="w-full"
                                 onFinish={handleChangePassword}
                             >
                                 <Form.Item label="Mật khẩu cũ" required>
                                     <Input.Password
                                         value={currentPassword}
                                         onChange={(e) => setCurrentPassword(e.target.value)}
+                                        className="w-full"
                                     />
                                 </Form.Item>
 
@@ -746,6 +576,7 @@ const AccountManagement = () => {
                                     <Input.Password
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
+                                        className="w-full"
                                     />
                                 </Form.Item>
 
@@ -753,6 +584,7 @@ const AccountManagement = () => {
                                     <Input.Password
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="w-full"
                                     />
                                 </Form.Item>
 
@@ -767,13 +599,12 @@ const AccountManagement = () => {
                                         </Button>
                                     </div>
                                 </Form.Item>
-
                             </Form>
-                        )}
+                        </div>
                     </div>
                 )}
 
-                {/* Move the "Quay lại trang chủ" button to the bottom */}
+                {/* Return Home Button */}
                 <Button
                     className="mt-4 !bg-white !text-red-500 !border-red-500 hover:!text-gray-600 hover:!border-gray-600"
                     onClick={() => navigate('/home')}
@@ -782,111 +613,12 @@ const AccountManagement = () => {
                 </Button>
             </div>
 
-            {/* Delete Confirmation Modal */}
-            <Modal
-                title="Xác nhận hủy liên kết thiết bị"
-                visible={isModalVisible}
-                onOk={handleRemoveDevice}
-                onCancel={() => setIsModalVisible(false)}
-                okText="Xác nhận"
-                cancelText="Hủy"
-            >
-                <p>Bạn có chắc chắn muốn hủy liên kết thiết bị này?</p>
-            </Modal>
-
             <ImageCropModal
                 visible={cropModalVisible}
                 image={selectedImage}
                 onCancel={() => setCropModalVisible(false)}
                 onCropComplete={handleCroppedImage}
             />
-
-            <Modal
-                title={
-                    <div className="flex items-center gap-3 py-2 border-b border-gray-100">
-                        <div className="bg-blue-50 p-2 rounded-lg">
-                            <UserOutlined className="text-xl text-blue-500" />
-                        </div>
-                        <span className="text-base sm:text-xl font-medium text-gray-700 line-clamp-1">
-                            Danh sách người dùng có quyền truy cập
-                        </span>
-                    </div>
-                }
-                open={isUsersModalVisible}
-                onCancel={() => setIsUsersModalVisible(false)}
-                footer={null}
-                style={{ 
-                    maxWidth: '600px',
-                    padding: '20px',
-                    top: 20
-                }}
-                width="auto"
-            >
-                {loadingUsers ? (
-                    <div className="flex justify-center items-center py-8">
-                        <Spin size="large" />
-                    </div>
-                ) : (
-                    <List
-                        dataSource={usersWithAccess}
-                        renderItem={user => (
-                            <List.Item className="hover:bg-gray-50 rounded-lg transition-all duration-300 p-2 sm:p-4">
-                                <List.Item.Meta
-                                    avatar={
-                                        user.photoURL ? (
-                                            <img 
-                                                src={user.photoURL} 
-                                                alt={user.username || 'User'} 
-                                                className="w-8 h-8 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-blue-100"
-                                            />
-                                        ) : (
-                                            <div className="flex justify-center items-center w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-gradient-to-r from-blue-100 to-blue-200 text-blue-500">
-                                                <UserOutlined className="text-base sm:text-xl" />
-                                            </div>
-                                        )
-                                    }
-                                    title={
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span className="font-semibold text-gray-800 text-sm sm:text-base">
-                                                {user.username || 'Người dùng'}
-                                            </span>
-                                            <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">
-                                                {getProviderIcon(user.registrationMethod)}
-                                                <span className="text-gray-600">
-                                                    {user.registrationMethod === 'google.com' ? 'Google' : 'Email'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    }
-                                    description={
-                                        <div className="flex flex-col gap-1 mt-1">
-                                            <div className="flex items-center gap-2 text-gray-500 text-xs sm:text-sm break-all">
-                                                <MailOutlined className="text-blue-400 flex-shrink-0" />
-                                                <span>{user.email}</span>
-                                            </div>
-                                            <div className="text-xs text-gray-400">
-                                                Đã tham gia: {new Date(user.createdAt).toLocaleDateString()}
-                                            </div>
-                                        </div>
-                                    }
-                                />
-                            </List.Item>
-                        )}
-                        locale={{
-                            emptyText: (
-                                <div className="flex flex-col items-center justify-center py-4 sm:py-8 text-gray-500">
-                                    <div className="bg-gray-100 p-3 sm:p-4 rounded-full mb-3">
-                                        <UserOutlined style={{ fontSize: '1.5rem' }} />
-                                    </div>
-                                    <span className="text-base sm:text-lg font-medium">Không có người dùng nào</span>
-                                    <span className="text-xs sm:text-sm text-gray-400 mt-1">Chưa có người dùng nào được cấp quyền truy cập</span>
-                                </div>
-                            )
-                        }}
-                        className="px-0 sm:px-2"
-                    />
-                )}
-            </Modal>
 
             {/* Add Preview Modal */}
             <Modal
