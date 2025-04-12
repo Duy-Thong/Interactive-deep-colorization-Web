@@ -285,46 +285,44 @@ const Home = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-300">
-            <Navbar onLogout={handleLogout}/>
-            
+            <Navbar onLogout={handleLogout} />
+
             <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center">
                 <div className="text-center mb-8 mt-12 md:mt-16 px-4 w-full">
-                    <AntTitle level={2} className="text-gray-800 text-xl sm:text-2xl md:text-3xl lg:text-4xl break-words">
+                    <AntTitle level={2} className="text-gray-800 text-2xl sm:text-3xl md:text-4xl lg:text-5xl break-words">
                         <span className="font-bold block sm:inline">Xin chào, </span>
                         <span className="text-blue-600 block sm:inline mt-2 sm:mt-0">{username || 'User'}</span>
                     </AntTitle>
                 </div>
 
-                {/* Image Colorization Section */}
-                <div className="w-full max-w-4xl bg-white bg-opacity-80 rounded-lg shadow-lg p-6 mb-8">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Tô màu ảnh đen trắng</h2>
-                    
-                    {/* Upload Section */}
-                    <div className="mb-6">
+                <div className="w-full max-w-5xl bg-white bg-opacity-90 rounded-lg shadow-xl p-8 mb-10">
+                    <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Tô màu ảnh đen trắng</h2>
+
+                    <div className="mb-8 flex flex-col items-center">
                         <Upload
                             customRequest={handleUpload}
                             showUploadList={false}
                             accept=".jpg,.jpeg,.png"
-                            className="w-full"
+                            className="w-full max-w-md flex flex-col items-center"
                         >
                             <Button 
                                 icon={<UploadOutlined />} 
                                 size="large" 
-                                className="w-full mb-2"
+                                className="w-full mb-3"
                                 disabled={isColorizing}
                             >
                                 Chọn ảnh để tô màu
                             </Button>
                         </Upload>
                         <p className="text-sm text-gray-500 text-center">Hỗ trợ JPG, PNG (tối đa 5MB)</p>
-                    </div>                    {/* Main Content Area - Side by Side Layout */}
+                    </div>
+
                     {imagePreview && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Left Side - Original Image and Color Selection */}
-                            <div className="mb-4">
-                                <h3 className="text-xl font-semibold text-gray-800 mb-3 text-center">Chọn điểm tô màu</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="mb-6">
+                                <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">Chọn điểm tô màu</h3>
                                 <div 
-                                    className="relative border-2 border-blue-300 rounded-lg mx-auto"
+                                    className="relative border-2 border-blue-300 rounded-lg mx-auto overflow-hidden"
                                     style={{ maxWidth: '100%', cursor: selectedPoint ? 'default' : 'crosshair' }}
                                 >
                                     <img 
@@ -335,8 +333,7 @@ const Home = () => {
                                         ref={imageRef}
                                         style={{ display: imagePreview === colorizedImage ? 'none' : 'block' }}
                                     />
-                                    
-                                    {/* Display All Saved Color Points */}
+
                                     {colorPoints.map((cp, index) => (
                                         <div 
                                             key={index}
@@ -351,8 +348,7 @@ const Home = () => {
                                             }}
                                         />
                                     ))}
-                                    
-                                    {/* Currently Selected Point Marker */}
+
                                     {selectedPoint && (
                                         <div 
                                             className="absolute w-5 h-5 rounded-full border-2 border-white shadow-lg animate-pulse" 
@@ -366,17 +362,15 @@ const Home = () => {
                                         />
                                     )}
                                 </div>
-                                
-                                {/* Instructions */}
-                                <p className="mt-2 text-gray-600 text-center">
+
+                                <p className="mt-3 text-gray-600 text-center">
                                     {selectedPoint 
                                         ? 'Điểm đã chọn. Bạn có thể nhấp vào ảnh để chọn lại.' 
                                         : 'Nhấp vào một điểm trên ảnh để chọn vị trí tô màu.'}
                                 </p>
-                                
-                                {/* Color Picker & Confirm Button for selected point */}
+
                                 {selectedPoint && (
-                                    <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-4">
+                                    <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-5">
                                         <div className="flex items-center gap-2">
                                             <span className="text-gray-700">Chọn màu:</span>
                                             <ColorPicker
@@ -385,7 +379,7 @@ const Home = () => {
                                                 disabled={isColorizing}
                                             />
                                         </div>
-                                        
+
                                         <Button
                                             type="primary"
                                             icon={<HighlightOutlined />}
@@ -398,10 +392,9 @@ const Home = () => {
                                         </Button>
                                     </div>
                                 )}
-                                
-                                {/* Colorize Button - only shown when there are color points */}
+
                                 {colorPoints.length > 0 && !selectedPoint && (
-                                    <div className="flex justify-center mt-4">
+                                    <div className="flex justify-center mt-5">
                                         <Button
                                             type="primary"
                                             icon={<HighlightOutlined />}
@@ -414,13 +407,12 @@ const Home = () => {
                                     </div>
                                 )}
                             </div>
-                            
-                            {/* Right Side - Colorized Result or Original Image */}
-                            <div className="mb-4">
-                                <h3 className="text-xl font-semibold text-gray-800 mb-3 text-center">
+
+                            <div className="mb-6">
+                                <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
                                     {colorizedImage ? 'Kết quả tô màu' : 'Ảnh chưa tô màu'}
                                 </h3>
-                                <div className={`border-2 ${colorizedImage ? 'border-green-300' : 'border-gray-300'} rounded-lg p-1 mx-auto h-full flex items-center justify-center`} 
+                                <div className={`border-2 ${colorizedImage ? 'border-green-300' : 'border-gray-300'} rounded-lg p-2 mx-auto h-full flex items-center justify-center`} 
                                     style={{ maxWidth: '100%' }}
                                 >
                                     {colorizedImage ? (
@@ -438,40 +430,32 @@ const Home = () => {
                             </div>
                         </div>
                     )}
-                    
-                    {/* API Error Message and Retry Button */}
+
                     {apiError && (
-                        <div className="mb-6">
+                        <div className="mb-8">
                             <Alert
                                 message="Lỗi khi tô màu"
                                 description={
-                                    <div className="pt-2">
+                                    <div className="pt-3">
                                         <p>{apiError.message}</p>
                                         {apiError.isCors && (
-                                            <div className="mt-2 text-sm text-gray-600">
+                                            <div className="mt-3 text-sm text-gray-600">
                                                 <p>Giải pháp có thể:</p>
                                                 <ol className="list-decimal pl-5">
                                                     <li>Kiểm tra máy chủ Python đã được khởi động</li>
                                                     <li>Sửa cấu hình CORS trong máy chủ Python:</li>
-                                                    <code className="block bg-gray-100 p-2 mt-1 rounded">
+                                                    <code className="block bg-gray-100 p-3 mt-2 rounded">
                                                         # Chỉ sử dụng MỘT trong hai cách sau:<br/>
                                                         # Cách 1: Sử dụng Flask-CORS<br/>
                                                         from flask_cors import CORS<br/>
                                                         app = Flask(__name__)<br/>
-                                                        CORS(app, origins=["http://localhost:3000"])<br/><br/>
-                                                        # Cách 2: Thêm headers thủ công<br/>
-                                                        @app.after_request<br/>
-                                                        def after_request(response):<br/>
-                                                        &nbsp;&nbsp;response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")<br/>
-                                                        &nbsp;&nbsp;return response
+                                                        CORS(app, origins=["http://localhost:3000"])
                                                     </code>
-                                                    <li>Nếu có thể, xóa bỏ một trong hai cách thêm headers CORS để tránh trùng lặp</li>
-                                                    {apiError.details && <li>{apiError.details}</li>}
                                                 </ol>
                                             </div>
                                         )}
                                         <Button 
-                                            className="mt-3"
+                                            className="mt-4"
                                             icon={<ReloadOutlined />}
                                             onClick={handleRetry}
                                             disabled={isColorizing}
@@ -482,23 +466,22 @@ const Home = () => {
                                 }
                                 type="error"
                                 showIcon
-                                className="my-4"
+                                className="my-5"
                             />
                         </div>
                     )}
                 </div>
             </div>
-            
-            {/* Color Picker Modal */}
+
             <Modal
                 title="Chọn màu"
                 open={showColorPicker}
                 onCancel={() => setShowColorPicker(false)}
                 footer={[
-
                     <Button key="cancel" onClick={() => setShowColorPicker(false)}>
                         Hủy
-                    </Button>,                    <Button 
+                    </Button>,
+                    <Button 
                         key="submit" 
                         type="primary" 
                         onClick={addColorPoint}
@@ -509,8 +492,8 @@ const Home = () => {
                     </Button>,
                 ]}
             >
-                <div className="flex flex-col items-center gap-4">
-                    <div className="flex items-center gap-2 w-full justify-center">
+                <div className="flex flex-col items-center gap-5">
+                    <div className="flex items-center gap-3 w-full justify-center">
                         <span>Chọn màu:</span>
                         <ColorPicker
                             value={selectedColor}
