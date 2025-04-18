@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getDatabase, ref, get } from "firebase/database";
 import { useUser } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
-import { Typography, Upload, Button, message, Spin, Alert, Modal, ColorPicker } from 'antd';
-import { UploadOutlined, HighlightOutlined, SendOutlined, ReloadOutlined, BgColorsOutlined, DeleteOutlined, DragOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Typography, Upload, Button, message, Spin, Alert, Modal, ColorPicker, Slider } from 'antd';
+import { UploadOutlined, HighlightOutlined, SendOutlined, ReloadOutlined, BgColorsOutlined, DeleteOutlined, DragOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 import Navbar from '../../components/Navbar';
@@ -21,7 +21,7 @@ const Home = () => {
     const [imagePath, setImagePath] = useState('');
     const [imagePreview, setImagePreview] = useState('');
     const [selectedPoint, setSelectedPoint] = useState(null);
-    const [selectedColor, setSelectedColor] = useState('#00C800'); // Default green color
+    const [selectedColor, setSelectedColor] = useState('#00C80080'); // Default green with 50% alpha
     const [colorizedImage, setColorizedImage] = useState('');
     const [isColorizing, setIsColorizing] = useState(false);
     const [isAutoColorizing, setIsAutoColorizing] = useState(false); // Add state for auto colorization
@@ -159,9 +159,9 @@ const Home = () => {
         setShowColorPicker(true);
     };
       const handleColorSelect = (color) => {
-        // Extract RGB values from the color
+        // Extract RGBA values from the color
         const rgb = color.toRgb();
-        setSelectedColor(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`);
+        setSelectedColor(`rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${rgb.a})`);
     };    // Add current point and color to the colorPoints array
     const addColorPoint = () => {
         if (!selectedPoint) {
@@ -169,10 +169,18 @@ const Home = () => {
             return;
         }
         
-        // Convert color from CSS format to array format
-        let colorArray = [0, 200, 0]; // Default green
+        // Convert color from CSS format to array format with alpha
+        let colorArray = [0, 200, 0]; // RGB default
+        let alpha = 1.0; // Default full opacity
         
-        if (selectedColor.startsWith('rgb')) {
+        if (selectedColor.startsWith('rgba')) {
+            // Extract RGBA values from the CSS color string
+            const rgba = selectedColor.match(/\d+\.?\d*/g);
+            if (rgba && rgba.length === 4) {
+                colorArray = rgba.slice(0, 3).map(Number);
+                alpha = parseFloat(rgba[3]);
+            }
+        } else if (selectedColor.startsWith('rgb')) {
             // Extract RGB values from the CSS color string
             const rgb = selectedColor.match(/\d+/g);
             if (rgb && rgb.length === 3) {
@@ -180,10 +188,11 @@ const Home = () => {
             }
         }
         
-        // Create a new point object
+        // Create a new point object with alpha
         const newPoint = {
             point: [selectedPoint.normalizedX, selectedPoint.normalizedY],
             color: colorArray,
+            alpha: alpha, // Store alpha separately
             displayPoint: { ...selectedPoint },
             displayColor: selectedColor
         };
@@ -207,7 +216,7 @@ const Home = () => {
         setSelectedPoint(null);
         setShowColorPicker(false);
     };
-    
+
     // Function to delete a color point by index
     const handleDeletePoint = (indexToDelete) => {
         setColorPoints(prevPoints => prevPoints.filter((_, index) => index !== indexToDelete));
@@ -331,7 +340,8 @@ const Home = () => {
                         y: yPercent,
                         r: cp.color[0],
                         g: cp.color[1],
-                        b: cp.color[2]
+                        b: cp.color[2],
+                        a: cp.alpha || 1.0 // Include alpha value, default to 1.0 if not set
                     };
                 })
             };
@@ -739,6 +749,8 @@ const Home = () => {
                                                     value={selectedColor}
                                                     onChange={handleColorSelect}
                                                     disabled={isColorizing || isAutoColorizing}
+                                                    showAlpha={true} // Enable alpha selection
+                                                    defaultFormat="rgb"
                                                 />
                                             </div>
                                             <Button
@@ -937,19 +949,39 @@ const Home = () => {
             >
                 <div className="flex flex-col items-center gap-5">
                     <div className="flex items-center gap-3 w-full justify-center">
-                        <span>Chọn màu:</span>
+                        <span>Chọn màu và độ mờ:</span>
                         <ColorPicker
                             value={selectedColor}
                             onChange={handleColorSelect}
                             disabled={isColorizing || isAutoColorizing} // Disable during loading
+                            showAlpha={true} // Enable alpha in modal too
+                            defaultFormat="rgb"
                         />
                     </div>
                     <div 
-                        className="w-16 h-16 rounded-full border-2 border-gray-300"
+                        className="w-16 h-16 rounded-full border-2 border-gray-300 checkerboard-bg"
                         style={{ backgroundColor: selectedColor }}
                     ></div>
+                    <div className="w-full pt-2">
+                        <p className="text-gray-600 text-sm mb-2 text-center">
+                            Độ đậm của màu sẽ ảnh hưởng đến mức độ tác động của điểm tô màu.
+                        </p>
+                    </div>
                 </div>
             </Modal>
+            
+            {/* Add CSS for checkerboard background to visualize transparency */}
+            <style jsx="true">{`
+                .checkerboard-bg {
+                    background-image: 
+                        linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                        linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #ccc 75%),
+                        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+                    background-size: 10px 10px;
+                    background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+                }
+            `}</style>
         </div>
     );
 };
