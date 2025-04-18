@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getDatabase, ref, get } from "firebase/database";
 import { useUser } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
-import { Typography, Upload, Button, message, Spin, Alert, Modal, ColorPicker, Slider } from 'antd';
-import { UploadOutlined, HighlightOutlined, SendOutlined, ReloadOutlined, BgColorsOutlined, DeleteOutlined, DragOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { Typography, Upload, Button, message, Spin, Alert, Modal, ColorPicker, Slider, Tooltip } from 'antd';
+import { UploadOutlined, HighlightOutlined, SendOutlined, ReloadOutlined, BgColorsOutlined, DeleteOutlined, DragOutlined, DownloadOutlined, EyeOutlined, BulbOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 import Navbar from '../../components/Navbar';
@@ -33,6 +33,8 @@ const Home = () => {
     const [colorPoints, setColorPoints] = useState([]);
     const [draggingPointIndex, setDraggingPointIndex] = useState(null); // State to track dragged point index
     const [editingPointIndex, setEditingPointIndex] = useState(null); // Add state for tracking which point is being edited
+    const [colorSuggestions, setColorSuggestions] = useState([]);
+    const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
 
     useEffect(() => {
         if (userId) {
@@ -150,15 +152,69 @@ const Home = () => {
         const normalizedY = Math.round((y / imageSize.height) * 256);
         
         // Store both original coordinates (for display) and normalized coordinates (for API)
-        setSelectedPoint({ 
+        const newPoint = { 
             x, 
             y,
             normalizedX,
             normalizedY
-        });
+        };
+        
+        setSelectedPoint(newPoint);
         setShowColorPicker(true);
+        
+        // Request color suggestions for this point
+        fetchColorSuggestions(newPoint);
     };
-      const handleColorSelect = (color) => {
+
+    // New function to fetch color suggestions from the API
+    const fetchColorSuggestions = async (point) => {
+        if (!imageFile || !point) return;
+        
+        setIsFetchingSuggestions(true);
+        setColorSuggestions([]);
+        
+        try {
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            
+            // Convert coordinates to percentage of image dimensions
+            const xPercent = (point.x / imageSize.width) * 100;
+            const yPercent = (point.y / imageSize.height) * 100;
+            
+            formData.append('x', xPercent.toString());
+            formData.append('y', yPercent.toString());
+            formData.append('k', '5'); // Request 5 suggestions
+            
+            const response = await axios.post(
+                'http://127.0.0.1:5000/suggest_colors',
+                formData,
+                { timeout: 30000 }
+            );
+            
+            if (response.data && response.data.status === 'success' && response.data.suggestions) {
+                // Store the suggestions
+                setColorSuggestions(response.data.suggestions.map(suggestion => ({
+                    color: `rgba(${suggestion.r}, ${suggestion.g}, ${suggestion.b}, 1.0)`,
+                    confidence: suggestion.confidence || 0
+                })));
+            } else {
+                console.warn('No color suggestions received');
+            }
+        } catch (error) {
+            console.error('Error fetching color suggestions:', error);
+            message.error('Không thể tải gợi ý màu. Vui lòng thử lại.');
+        } finally {
+            setIsFetchingSuggestions(false);
+        }
+    };
+    
+    // Add function to apply a suggested color
+    const applySuggestedColor = (colorValue) => {
+        setSelectedColor(colorValue);
+    };
+    
+    const handleColorSelect = (color) => {
         // Extract RGBA values from the color
         const rgb = color.toRgb();
         setSelectedColor(`rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${rgb.a})`);
@@ -664,7 +720,7 @@ const Home = () => {
                                 Chọn ảnh để tô màu
                             </Button>
                         </Upload>
-                        <p className="text-sm text-gray-500 text-center">Hỗ trợ JPG, PNG (tối đa 5MB)</p>
+                        <p className="text-sm text-gray-500 text-center">Hỗ trợ JPG, PNG (tối đa 5MB), dài rộng tối đa 1500px</p>
                     </div>
 
                     {imagePreview && (
@@ -775,7 +831,7 @@ const Home = () => {
                                     <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
                                         {isColorizing || isAutoColorizing ? 'Đang xử lý...' : (colorizedImage ? 'Kết quả tô màu' : 'Ảnh chưa tô màu')}
                                     </h3>
-                                    <div className={`flex-grow border-2 ${isColorizing || isAutoColorizing ? 'border-yellow-400 animate-pulse' : (colorizedImage ? 'border-green-300' : 'border-gray-300')} rounded-lg p-2 mx-auto w-full flex items-center justify-center`} 
+                                    <div className={`flex-grow  ${isColorizing || isAutoColorizing ? 'border-yellow-400 animate-pulse' : (colorizedImage ? 'border-green-300' : 'border-gray-300')} rounded-lg border-2 mx-auto w-full flex items-center justify-center`} 
                                         style={{ minHeight: '250px' /* Ensure space */ }}
                                     >
                                         {/* ... existing result display logic (Spin, Image, Placeholder) ... */}
@@ -927,11 +983,13 @@ const Home = () => {
                 onCancel={() => {
                     setShowColorPicker(false);
                     setEditingPointIndex(null); // Reset editing index when canceling
+                    setColorSuggestions([]); // Clear suggestions when closing
                 }}
                 footer={[
                     <Button key="cancel" onClick={() => {
                         setShowColorPicker(false);
                         setEditingPointIndex(null); // Reset editing index when canceling
+                        setColorSuggestions([]); // Clear suggestions when closing
                     }} disabled={isColorizing || isAutoColorizing}>
                         Hủy
                     </Button>,
@@ -958,10 +1016,45 @@ const Home = () => {
                             defaultFormat="rgb"
                         />
                     </div>
+                    
                     <div 
                         className="w-16 h-16 rounded-full border-2 border-gray-300 checkerboard-bg"
                         style={{ backgroundColor: selectedColor }}
                     ></div>
+                    
+                    {/* Add suggestions section */}
+                    <div className="w-full border-t border-gray-200 pt-4 mt-2">
+                        <h4 className="text-sm font-medium flex items-center gap-1 mb-2">
+                            <BulbOutlined style={{ color: '#faad14' }} />
+                            Gợi ý màu cho vị trí này:
+                        </h4>
+                        
+                        {isFetchingSuggestions ? (
+                            <div className="flex justify-center py-2">
+                                <Spin size="small" tip="Đang tải gợi ý..." />
+                            </div>
+                        ) : colorSuggestions.length > 0 ? (
+                            <div className="flex justify-center gap-2 flex-wrap">
+                                {colorSuggestions.map((suggestion, idx) => (
+                                    <Tooltip 
+                                        key={idx} 
+                                        title={`Đề xuất ${idx + 1} - Độ tin cậy: ${Math.round(suggestion.confidence * 100)}%`}
+                                    >
+                                        <div
+                                            className="w-10 h-10 rounded-full border-2 border-gray-200 hover:border-blue-500 cursor-pointer transition-all"
+                                            style={{ backgroundColor: suggestion.color }}
+                                            onClick={() => applySuggestedColor(suggestion.color)}
+                                        />
+                                    </Tooltip>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-500 text-center">
+                                Không có gợi ý màu hoặc đã xảy ra lỗi khi tải gợi ý.
+                            </p>
+                        )}
+                    </div>
+                    
                     <div className="w-full pt-2">
                         <p className="text-gray-600 text-sm mb-2 text-center">
                             Độ đậm của màu sẽ ảnh hưởng đến mức độ tác động của điểm tô màu.
