@@ -30,11 +30,11 @@ const Home = () => {
     const [showColorPicker, setShowColorPicker] = useState(false); // Re-add the missing state
     const imageRef = useRef(null);
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
-    const [colorPoints, setColorPoints] = useState([]);
-    const [draggingPointIndex, setDraggingPointIndex] = useState(null); // State to track dragged point index
+    const [colorPoints, setColorPoints] = useState([]);    const [draggingPointIndex, setDraggingPointIndex] = useState(null); // State to track dragged point index
     const [editingPointIndex, setEditingPointIndex] = useState(null); // Add state for tracking which point is being edited
     const [colorSuggestions, setColorSuggestions] = useState([]);
     const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+    const [sessionId, setSessionId] = useState(null); // Add state for session ID
 
     useEffect(() => {
         if (userId) {
@@ -75,7 +75,6 @@ const Home = () => {
             return false;
         }
         
-        // Check image dimensions (1500x1500 max)
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -86,8 +85,8 @@ const Home = () => {
                     const width = img.width;
                     const height = img.height;
                     
-                    if (width > 1500 || height > 1500) {
-                        message.error('Kích thước ảnh không được vượt quá 1500x1500 pixel!');
+                    if (width > 2000 || height >2000) {
+                        message.error('Kích thước ảnh không được vượt quá 2000x2000 pixel!');
                         reject(false);
                     } else {
                         resolve(true);
@@ -112,6 +111,7 @@ const Home = () => {
         setColorPoints([]); // Reset color points when uploading a new image
         setApiError(null); // Reset API error on new upload
         setRetryCount(0); // Reset retry count
+        setSessionId(null); // Reset session ID to start a new session with each image upload
         
         // Read the file to get image dimensions and data
         const reader = new FileReader();
@@ -186,6 +186,11 @@ const Home = () => {
             formData.append('y', yPercent.toString());
             formData.append('k', '5'); // Request 5 suggestions
             
+            // Include session ID if available to maintain the same session
+            if (sessionId) {
+                formData.append('session_id', sessionId);
+            }
+            
             const response = await axios.post(
                 'http://127.0.0.1:5000/suggest_colors',
                 formData,
@@ -198,6 +203,11 @@ const Home = () => {
                     color: `rgba(${suggestion.r}, ${suggestion.g}, ${suggestion.b}, 1.0)`,
                     confidence: suggestion.confidence || 0
                 })));
+                
+                // Save the session ID if provided and not already set
+                if (response.data.session_id && !sessionId) {
+                    setSessionId(response.data.session_id);
+                }
             } else {
                 console.warn('No color suggestions received');
             }
@@ -293,6 +303,11 @@ const Home = () => {
         try {
             const formData = new FormData();
             formData.append('image', imageFile);
+            
+            // Include session ID if available
+            if (sessionId) {
+                formData.append('session_id', sessionId);
+            }
 
             // Configure the request
             let requestConfig = { 
@@ -309,6 +324,11 @@ const Home = () => {
             setRetryCount(0); // Reset retry count on success
 
             if (response.data && response.data.status === 'success' && response.data.image) {
+                // Save the session ID for future requests
+                if (response.data.session_id) {
+                    setSessionId(response.data.session_id);
+                }
+                
                 // Decode base64 image
                 const byteCharacters = atob(response.data.image);
                 const byteNumbers = new Array(byteCharacters.length);
@@ -324,7 +344,6 @@ const Home = () => {
             } else {
                 throw new Error(response.data?.error || 'Không nhận được ảnh tô màu từ máy chủ.');
             }
-
         } catch (error) {
             console.error('Error auto colorizing image:', error);
             let errorMessage = 'Có lỗi khi tô màu ảnh tự động. ';
@@ -380,6 +399,11 @@ const Home = () => {
             const formData = new FormData();
             formData.append('image', imageFile);
 
+            // Include session ID if available
+            if (sessionId) {
+                formData.append('session_id', sessionId);
+            }
+
             // Format hints according to backend requirements (percentage coordinates)
             const hints = {
                 points: currentPoints.map(cp => {
@@ -403,25 +427,25 @@ const Home = () => {
             };
             formData.append('hints', JSON.stringify(hints));
 
-            // Configure the request - remove Content-Type header for FormData
-            // Axios will set the correct multipart/form-data header automatically
+            // Configure the request
             let requestConfig = { 
-                // responseType: 'blob', // Change response type to handle JSON
                 timeout: 60000, // Increase timeout to 60 seconds
-                // headers: { // Remove this header
-                //     'Content-Type': 'application/json' 
-                // }
             };
             
             // Send the request to the correct endpoint
             const response = await axios.post(
                 'http://127.0.0.1:5000/colorize_with_hints', // Updated endpoint
-                formData, // Send FormData
+                formData, 
                 requestConfig
             );
             
             // Reset retry count on success
             setRetryCount(0);
+
+            // Store the session ID if provided
+            if (response.data && response.data.session_id) {
+                setSessionId(response.data.session_id);
+            }
 
             // Handle JSON response with base64 image
             if (response.data && response.data.status === 'success' && response.data.image) {
@@ -453,7 +477,7 @@ const Home = () => {
                 errorMessage = 'Lỗi kết nối đến máy chủ tô màu. Vui lòng kiểm tra máy chủ đã khởi động và cấu hình CORS phù hợp.';
                 setApiError({
                     message: errorMessage,
-                    isCors: true, // Keep CORS flag for specific guidance
+                    isCors: true,
                     details: "Máy chủ Python có thể đang đặt header CORS không đúng cách. Hãy kiểm tra cấu hình CORS trong mã máy chủ."
                 });
             } else if (error.response) {
@@ -518,9 +542,7 @@ const Home = () => {
         setRetryCount(prev => prev + 1);
         setApiError(null);
         // Decide which function to retry based on context? 
-        // For simplicity, let's assume retry always uses hints if points exist, otherwise auto.
-        // Or maybe retry should only be available after a specific action failed.
-        // Let's make retry always call the last attempted action if possible,
+        // For simplicity, let's assume retry always uses hints if possible,
         // but for now, we'll default to hint-based if points exist.
         if (colorPoints.length > 0) {
             handleColorizeImage();
@@ -699,7 +721,7 @@ const Home = () => {
                     </AntTitle>
                 </div>
 
-                <div className="w-full max-w-5xl bg-white bg-opacity-90 rounded-lg shadow-xl p-8 mb-10">
+                <div className="w-full  bg-white bg-opacity-90 rounded-lg shadow-xl p-8 mb-10">
                     <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Tô màu ảnh đen trắng</h2>
 
                     <div className="mb-8 flex flex-col items-center">
@@ -720,7 +742,7 @@ const Home = () => {
                                 Chọn ảnh để tô màu
                             </Button>
                         </Upload>
-                        <p className="text-sm text-gray-500 text-center">Hỗ trợ JPG, PNG (tối đa 5MB), dài rộng tối đa 1500px</p>
+                        <p className="text-sm text-gray-500 text-center">Hỗ trợ JPG, PNG (tối đa 5MB), dài rộng tối đa 2000px</p>
                     </div>
 
                     {imagePreview && (
@@ -832,7 +854,7 @@ const Home = () => {
                                         {isColorizing || isAutoColorizing ? 'Đang xử lý...' : (colorizedImage ? 'Kết quả tô màu' : 'Ảnh chưa tô màu')}
                                     </h3>
                                     <div className={`flex-grow  ${isColorizing || isAutoColorizing ? 'border-yellow-400 animate-pulse' : (colorizedImage ? 'border-green-300' : 'border-gray-300')} rounded-lg border-2 mx-auto w-full flex items-center justify-center`} 
-                                        style={{ minHeight: '250px' /* Ensure space */ }}
+                                       
                                     >
                                         {/* ... existing result display logic (Spin, Image, Placeholder) ... */}
                                          {isColorizing || isAutoColorizing ? (
@@ -843,7 +865,6 @@ const Home = () => {
                                                     src={colorizedImage} 
                                                     alt="Colorized" 
                                                     className="w-full h-auto rounded-lg object-contain" // Use object-contain
-                                                    style={{ maxHeight: '400px' }} // Limit height if needed
                                                 />
                                                 <Button
                                                     type="primary"
