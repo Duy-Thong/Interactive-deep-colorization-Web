@@ -3,7 +3,7 @@ import { getDatabase, ref, get } from "firebase/database";
 import { useUser } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Upload, Button, message, Spin, Alert, Modal, ColorPicker } from 'antd';
-import { UploadOutlined, HighlightOutlined, SendOutlined, ReloadOutlined, BgColorsOutlined, DeleteOutlined, DragOutlined } from '@ant-design/icons';
+import { UploadOutlined, HighlightOutlined, SendOutlined, ReloadOutlined, BgColorsOutlined, DeleteOutlined, DragOutlined, DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 import Navbar from '../../components/Navbar';
@@ -568,6 +568,35 @@ const Home = () => {
         setShowColorPicker(true);
     };
 
+    // Add function to handle image download
+    const handleDownloadImage = () => {
+        if (!colorizedImage) {
+            message.error('Không có ảnh để tải xuống!');
+            return;
+        }
+        
+        try {
+            // Create an anchor element and set properties for download
+            const link = document.createElement('a');
+            link.href = colorizedImage;
+            
+            // Create a filename with timestamp to avoid duplicates
+            const date = new Date();
+            const timestamp = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}_${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
+            link.download = `colorized_image_${timestamp}.jpg`; 
+            
+            // Append to the body, trigger click, and clean up
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            message.success('Đã tải xuống ảnh thành công!');
+        } catch (error) {
+            console.error('Download error:', error);
+            message.error('Có lỗi khi tải xuống ảnh!');
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen">
@@ -698,11 +727,7 @@ const Home = () => {
                                         )}
                                     </div>
                                     {/* ... existing paragraph ... */}
-                                    <p className="mt-3 text-gray-600 text-center">
-                                        {selectedPoint 
-                                            ? 'Điểm đã chọn. Chọn màu và xác nhận hoặc nhấp vào ảnh để chọn lại.' 
-                                            : (colorPoints.length > 0 ? 'Nhấp vào ảnh để thêm điểm màu khác.' : 'Nhấp vào ảnh để chọn điểm màu tùy chỉnh.')}
-                                    </p>
+                                    
 
                                     {/* Color Picker and Add Point Button */}
                                     {selectedPoint && (
@@ -745,17 +770,29 @@ const Home = () => {
                                          {isColorizing || isAutoColorizing ? (
                                             <Spin size="large" tip="Đang tô màu..." />
                                         ) : colorizedImage ? (
-                                            <img 
-                                                src={colorizedImage} 
-                                                alt="Colorized" 
-                                                className="w-full h-auto rounded-lg object-contain" // Use object-contain
-                                                style={{ maxHeight: '400px' }} // Limit height if needed
-                                            />
+                                            <div className="relative w-full">
+                                                <img 
+                                                    src={colorizedImage} 
+                                                    alt="Colorized" 
+                                                    className="w-full h-auto rounded-lg object-contain" // Use object-contain
+                                                    style={{ maxHeight: '400px' }} // Limit height if needed
+                                                />
+                                                <Button
+                                                    type="primary"
+                                                    icon={<DownloadOutlined />}
+                                                    onClick={handleDownloadImage}
+                                                    className="absolute bottom-2 right-2"
+                                                    size="large"
+                                                >
+                                                    Tải xuống
+                                                </Button>
+                                            </div>
                                         ) : (
                                             <div className="text-center text-gray-500 p-4">
                                                 <p>Kết quả tô màu sẽ hiển thị ở đây.</p>
                                                 {imagePreview && colorPoints.length === 0 && <p>Nhấn 'Tô màu tự động' hoặc chọn điểm màu.</p>}
-                                                {imagePreview && colorPoints.length > 0 && <p>Thêm điểm màu hoặc nhấn 'Tô màu với điểm đã chọn'.</p>}
+                                                {imagePreview && colorPoints.length > 0 && <p>Thêm điểm màu hoặc nhấn 'Tô màu với điểm đã chọn'.</p>
+                                                }
                                             </div>
                                         )}
                                     </div>
